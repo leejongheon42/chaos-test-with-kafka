@@ -1,0 +1,99 @@
+version: '3'
+
+services:
+
+  zookeeperA:
+    image: docker.io/bitnami/zookeeper:3.9.2-debian-12-r15
+    hostname: zookeeperA
+    container_name: zookeeperA
+    ports:
+      - 2181:2181  # Changed from 22181 to standard 2181
+      - 2888:2888  # Changed from 22888 to standard 2888
+      - 3888:3888  # Changed from 23888 to standard 3888
+    volumes:
+      - ./zookeeperA/data:/data
+    environment:
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_CLIENT_PORT: 2181  # Changed to match the exposed port
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_SERVERS: zookeeperA:2888:3888  # Updated to use standard ports
+      ALLOW_ANONYMOUS_LOGIN: yes
+    restart: always
+
+  broker1A:
+    image: docker.io/bitnami/kafka:3.8.0-debian-12-r6
+    hostname: broker1A
+    container_name: broker1A
+    volumes:
+      - ./data:/data
+      - ./scripts:/home/appuser
+    ports:
+      - 9092:9092
+      - 29092:29092
+    depends_on:
+      - zookeeperA
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeperA:2181  # Updated to use the correct ZooKeeper port
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker1A:29092,PLAINTEXT_HOST://localhost:9092
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+      KAFKA_AUTO_OFFSET_RESET: "latest"
+    restart: always
+
+  broker2A:
+    image: docker.io/bitnami/kafka:3.8.0-debian-12-r6
+    hostname: broker2A
+    container_name: broker2A
+    ports:
+      - 9093:9093
+      - 39092:39092
+    depends_on:
+      - zookeeperA
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeperA:2181  # Updated to use the correct ZooKeeper port
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:39092,PLAINTEXT_HOST://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker2A:39092,PLAINTEXT_HOST://localhost:9093
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+      KAFKA_AUTO_OFFSET_RESET: "latest"
+    restart: always
+
+  broker3A:
+    image: docker.io/bitnami/kafka:3.8.0-debian-12-r6
+    hostname: broker3A
+    container_name: broker3A
+    ports:
+      - 9094:9094
+      - 49092:49092
+    depends_on:
+      - zookeeperA
+    environment:
+      KAFKA_BROKER_ID: 3
+      KAFKA_ZOOKEEPER_CONNECT: zookeeperA:2181  # Updated to use the correct ZooKeeper port
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:49092,PLAINTEXT_HOST://0.0.0.0:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker3A:49092,PLAINTEXT_HOST://localhost:9094
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
+      KAFKA_AUTO_OFFSET_RESET: "latest"
+    restart: always
+
+  kafka_ui_A:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka_ui_A
+    ports:
+      - "8081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local_A
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker1A:29092,broker2A:39092,broker3A:49092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeperA:2181
+    depends_on:
+      - broker1A
+      - broker2A
+      - broker3A
+      - zookeeperA
+    restart: always
